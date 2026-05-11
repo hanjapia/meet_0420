@@ -518,20 +518,22 @@ const App = () => {
                   <Users size={18} className="text-blue-600" />
                   <span>총 {totalParticipantsCount}명 참여 중</span>
                 </div>
-                <button 
-                  onClick={() => {
-                    const newName = prompt("추가할 인원의 성함을 입력하세요:");
-                    if (newName && newName.trim()) {
-                      const trimmed = newName.trim();
-                      setUserName(trimmed);
-                      setActiveProfiles(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
-                    }
-                  }} 
-                  className="px-3 py-1.5 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors text-xs font-bold flex items-center gap-1 shadow-sm"
-                  title="새로운 인원 추가"
-                >
-                  <PlusCircle size={14} /> 이름입력하여 참여하기
-                </button>
+                <div className="relative flex items-center">
+                  <input 
+                    type="text"
+                    value={userName}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setUserName(val);
+                      if (val.trim()) {
+                        setActiveProfiles(prev => prev.includes(val.trim()) ? prev : [...prev, val.trim()]);
+                      }
+                    }}
+                    placeholder="이름 입력 (인원추가)"
+                    className="px-3 py-1.5 pr-8 text-blue-600 bg-blue-50 focus:bg-white border border-transparent focus:border-blue-300 rounded-xl transition-colors text-xs font-bold shadow-sm outline-none w-36"
+                  />
+                  <PlusCircle size={14} className="absolute right-2.5 text-blue-400 pointer-events-none" />
+                </div>
               </div>
               {Array.from(new Set([...activeProfiles, ...participantNames])).length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-1 w-full">
@@ -588,7 +590,6 @@ const App = () => {
               const participants = dayEntry 
                 ? Object.entries(dayEntry.participants).map(([k, v]) => v === true ? k : v) 
                 : [];
-              const isMySelection = participants.includes(userName);
               const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
               const isMax = maxParticipantsCount > 1 && participants.length === maxParticipantsCount;
 
@@ -597,16 +598,15 @@ const App = () => {
                   key={day}
                   onClick={() => !isUpdating && toggleAvailability(day)}
                   className={`relative p-3 border-b border-r border-slate-50 cursor-pointer transition-all hover:z-10 group 
-                    ${isMySelection ? 'bg-blue-50/30' : 'hover:bg-slate-50/80'}
-                    ${isMax && !isMySelection ? 'bg-orange-50/40 ring-inset ring-2 ring-orange-200' : ''}
+                    hover:bg-slate-50/80
+                    ${isMax ? 'bg-orange-50/40 ring-inset ring-2 ring-orange-200' : ''}
                     ${isUpdating ? 'cursor-wait opacity-80' : ''}
                   `}
                 >
                   <div className="flex justify-between items-start mb-2">
                     <span className={`text-base font-black w-9 h-9 flex items-center justify-center rounded-2xl transition-all z-10
                       ${isToday ? 'bg-slate-900 text-white shadow-lg scale-110' : 'text-slate-700'} 
-                      ${isMySelection ? 'bg-blue-600 text-white shadow-blue-200 shadow-xl' : ''}
-                      ${isMax && !isMySelection && !isToday ? 'text-orange-700' : ''}
+                      ${isMax && !isToday ? 'text-orange-700' : ''}
                     `}>
                       {day}
                     </span>
@@ -630,9 +630,7 @@ const App = () => {
                     {participants.map((name, i) => (
                       <div 
                         key={`${name}-${i}`} 
-                        className={`text-[10px] px-1.5 py-1 rounded-md font-bold truncate text-center transition-all animate-in fade-in slide-in-from-bottom-1 shadow-sm
-                          ${name === userName ? 'ring-2 ring-offset-1 ring-slate-400' : ''}
-                        `}
+                        className="text-[10px] px-1.5 py-1 rounded-md font-bold truncate text-center transition-all animate-in fade-in slide-in-from-bottom-1 shadow-sm"
                         style={getBadgeStyle(name)}
                         title={name}
                       >
