@@ -375,6 +375,18 @@ const App = () => {
   }, [availabilityData]);
   const totalParticipantsCount = participantNames.length;
 
+  const maxParticipantsCount = useMemo(() => {
+    let max = 0;
+    availabilityData.forEach(day => {
+      const [y, m] = day.date.split('-');
+      if (parseInt(y) === currentDate.getFullYear() && parseInt(m) === currentDate.getMonth() + 1) {
+        const count = Object.values(day.participants || {}).filter(v => v === true || typeof v === 'string').length;
+        if (count > max) max = count;
+      }
+    });
+    return max;
+  }, [availabilityData, currentDate]);
+
   // 바탕화면 색상 동적 결정 (인라인 스타일 사용으로 확실한 적용)
   const bgColorHash = useMemo(() => {
     if (!userName) return '#f8fafc';
@@ -459,6 +471,26 @@ const App = () => {
   return (
     <div className="min-h-screen p-4 md:p-8 font-sans text-slate-800 transition-colors duration-500" style={{ backgroundColor: bgColorHash }}>
       <div className="max-w-6xl mx-auto">
+        {/* 상단 주소 복사 및 카카오톡 공유 행 */}
+        <div className="flex items-center justify-end gap-3 mb-4 w-full">
+          <button 
+            onClick={copyMeetingLink}
+            className="bg-white text-blue-600 px-4 py-2.5 rounded-2xl font-bold flex items-center gap-2 shadow-sm border border-slate-100 hover:bg-slate-50 transition-all text-sm"
+            title="이 모임의 주소를 복사합니다"
+          >
+            <LinkIcon size={18} />
+            <span>주소 복사</span>
+          </button>
+          <button 
+            onClick={shareToKakao}
+            disabled={!kakaoLoaded}
+            className="bg-[#FEE500] text-[#191919] px-4 py-2.5 rounded-2xl font-bold flex items-center gap-2 shadow-sm hover:brightness-95 transition-all text-sm disabled:opacity-50"
+          >
+            <MessageCircle size={18} fill="currentColor" />
+            <span>카톡 공유하기</span>
+          </button>
+        </div>
+
         <div className="mb-8 w-full h-48 md:h-64 rounded-[2.5rem] overflow-hidden shadow-lg relative bg-slate-100">
           <img src={meetingInfo.imageUrl || "/coffee_gathering.png"} alt="모임 배너" className="w-full h-full object-cover opacity-90" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/30 to-transparent p-6 md:p-8 flex flex-col justify-end">
@@ -478,73 +510,57 @@ const App = () => {
           </div>
         </div>
         <div className="flex flex-col lg:flex-row justify-between items-center mb-8 gap-6">
-          <div className="flex items-center gap-3">
-            <div className="bg-white p-2 rounded-2xl shadow-sm border border-slate-100 flex flex-wrap items-center gap-2">
-              {activeProfiles.map(profile => (
-                <button
-                  key={profile}
-                  onClick={() => setUserName(profile)}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-                    userName === profile 
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-100' 
-                      : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                  }`}
-                >
-                  {profile}
-                </button>
-              ))}
-              <button 
-                onClick={() => {
-                  const newName = prompt("추가할 인원의 성함을 입력하세요:");
-                  if (newName && newName.trim()) {
-                    const trimmed = newName.trim();
-                    setUserName(trimmed);
-                    setActiveProfiles(prev => prev.includes(trimmed) ? prev : [...prev, trimmed]);
-                  }
-                }} 
-                className="px-4 py-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors text-sm font-bold flex items-center gap-1"
-                title="새로운 인원 추가"
-              >
-                + 인원 추가
-              </button>
-            </div>
-
-            {/* 총 참여 인원 및 명단 표시 */}
-            <div className="flex flex-col items-end gap-2">
-              <div className="flex items-center gap-2 bg-white px-4 py-3 rounded-2xl shadow-sm border border-slate-100 font-bold text-sm text-slate-700">
-                <Users size={18} className="text-blue-600" />
-                <span className="hidden sm:inline">총 </span>{totalParticipantsCount}명 참여 중
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            {/* 총 참여 인원 및 인원 추가 합친 블록 */}
+            <div className="flex flex-col gap-3 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 w-full lg:min-w-[320px]">
+              <div className="flex items-center justify-between gap-4 w-full">
+                <div className="flex items-center gap-2 font-bold text-sm text-slate-700">
+                  <Users size={18} className="text-blue-600" />
+                  <span>총 {totalParticipantsCount}명 참여 중</span>
+                </div>
+                <div className="relative flex items-center">
+                  <input 
+                    type="text"
+                    value={userName}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setUserName(val);
+                      if (val.trim()) {
+                        setActiveProfiles(prev => prev.includes(val.trim()) ? prev : [...prev, val.trim()]);
+                      }
+                    }}
+                    placeholder="이름 입력 (인원추가)"
+                    className="px-3 py-1.5 pr-8 text-blue-600 bg-blue-50 focus:bg-white border border-transparent focus:border-blue-300 rounded-xl transition-colors text-xs font-bold shadow-sm outline-none w-36"
+                  />
+                  <PlusCircle size={14} className="absolute right-2.5 text-blue-400 pointer-events-none" />
+                </div>
               </div>
-              {totalParticipantsCount > 0 && (
-                <div className="flex flex-wrap gap-1 max-w-[250px] justify-end mt-1">
-                  {participantNames.map(name => (
-                    <span key={name} className="text-[10px] px-2 py-1 rounded-md font-bold shadow-sm" style={getBadgeStyle(name)}>
-                      {name}
-                    </span>
-                  ))}
+              {Array.from(new Set([...activeProfiles, ...participantNames])).length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-1 w-full">
+                  {Array.from(new Set([...activeProfiles, ...participantNames])).map(name => {
+                    const isSelected = userName === name;
+                    const baseStyle = getBadgeStyle(name);
+                    return (
+                      <button 
+                        key={name}
+                        onClick={() => setUserName(name)}
+                        className={`text-[12px] px-3 py-1.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-1 ${
+                          isSelected 
+                            ? 'ring-2 ring-blue-400 ring-offset-1 scale-105 z-10 opacity-100' 
+                            : 'hover:scale-105 opacity-70 hover:opacity-100'
+                        }`}
+                        style={isSelected ? { backgroundColor: '#2563eb', color: 'white' } : baseStyle}
+                        title={`${name} 프로필로 선택`}
+                      >
+                        {isSelected && <Check size={12} />}
+                        {name}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            {/* 현재 주소 복사 버튼 */}
-            <button 
-              onClick={copyMeetingLink}
-              className="bg-blue-50 text-blue-600 px-4 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-sm hover:bg-blue-100 transition-all text-sm"
-              title="이 모임의 주소를 복사합니다"
-            >
-              <LinkIcon size={18} />
-              <span className="hidden sm:inline">주소 복사</span>
-            </button>
-
-            {/* 카카오톡 공유 버튼 */}
-            <button 
-              onClick={shareToKakao}
-              disabled={!kakaoLoaded}
-              className="bg-[#FEE500] text-[#191919] px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-sm hover:brightness-95 transition-all text-sm disabled:opacity-50"
-            >
-              <MessageCircle size={18} fill="currentColor" />
-              <span className="hidden sm:inline">카톡 공유하기</span>
-            </button>
           </div>
 
           <div className="flex items-center gap-3 bg-white p-2.5 rounded-[1.5rem] shadow-sm border border-slate-100">
@@ -553,14 +569,6 @@ const App = () => {
             <button onClick={handleNextMonth} className="p-2.5 hover:bg-slate-100 rounded-xl transition-all"><ChevronRight size={22} /></button>
           </div>
 
-          <div className="flex items-center gap-4 text-[11px] font-bold text-slate-500 uppercase">
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full border border-blue-100">
-              <Check size={14} /> 내 선택
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-white text-slate-400 rounded-full border border-slate-100">
-               다른 사람의 선택
-            </div>
-          </div>
         </div>
 
         {/* 캘린더 그리드 */}
@@ -582,31 +590,39 @@ const App = () => {
               const participants = dayEntry 
                 ? Object.entries(dayEntry.participants).map(([k, v]) => v === true ? k : v) 
                 : [];
-              const isMySelection = participants.includes(userName);
               const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
+              const isMax = maxParticipantsCount > 1 && participants.length === maxParticipantsCount;
 
               return (
                 <div 
                   key={day}
                   onClick={() => !isUpdating && toggleAvailability(day)}
                   className={`relative p-3 border-b border-r border-slate-50 cursor-pointer transition-all hover:z-10 group 
-                    ${isMySelection ? 'bg-blue-50/30' : 'hover:bg-slate-50/80'}
+                    hover:bg-slate-50/80
+                    ${isMax ? 'bg-orange-50/40 ring-inset ring-2 ring-orange-200' : ''}
                     ${isUpdating ? 'cursor-wait opacity-80' : ''}
                   `}
                 >
                   <div className="flex justify-between items-start mb-2">
-                    <span className={`text-base font-black w-9 h-9 flex items-center justify-center rounded-2xl transition-all 
+                    <span className={`text-base font-black w-9 h-9 flex items-center justify-center rounded-2xl transition-all z-10
                       ${isToday ? 'bg-slate-900 text-white shadow-lg scale-110' : 'text-slate-700'} 
-                      ${isMySelection ? 'bg-blue-600 text-white shadow-blue-200 shadow-xl' : ''}
+                      ${isMax && !isToday ? 'text-orange-700' : ''}
                     `}>
                       {day}
                     </span>
-                    {participants.length > 0 && (
-                      <div className="flex items-center gap-1 text-[10px] font-black text-blue-600 bg-blue-100/50 px-2 py-0.5 rounded-full shadow-sm">
-                        <Users size={10} />
-                        {participants.length}
-                      </div>
-                    )}
+                    <div className="flex flex-col items-end gap-1.5 z-10">
+                      {isMax && (
+                        <div className="text-[10px] font-black text-orange-600 bg-orange-100 border border-orange-200 px-1.5 py-0.5 rounded shadow-sm animate-pulse">
+                          BEST 🔥
+                        </div>
+                      )}
+                      {participants.length > 0 && (
+                        <div className="flex items-center gap-1 text-[10px] font-black text-blue-600 bg-blue-100/50 px-2 py-0.5 rounded-full shadow-sm">
+                          <Users size={10} />
+                          {participants.length}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   {/* 날짜별 가능한 사람 명단 (2열 배치, 5줄 초과 시 스크롤) */}
@@ -614,9 +630,7 @@ const App = () => {
                     {participants.map((name, i) => (
                       <div 
                         key={`${name}-${i}`} 
-                        className={`text-[10px] px-1.5 py-1 rounded-md font-bold truncate text-center transition-all animate-in fade-in slide-in-from-bottom-1 shadow-sm
-                          ${name === userName ? 'ring-2 ring-offset-1 ring-slate-400' : ''}
-                        `}
+                        className="text-[10px] px-1.5 py-1 rounded-md font-bold truncate text-center transition-all animate-in fade-in slide-in-from-bottom-1 shadow-sm"
                         style={getBadgeStyle(name)}
                         title={name}
                       >
